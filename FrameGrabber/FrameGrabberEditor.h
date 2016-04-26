@@ -43,6 +43,9 @@ public:
     FrameGrabberEditor(GenericProcessor* parentNode, bool useDefaultParameterEditors);
     virtual ~FrameGrabberEditor();
 
+	void updateSettings();
+	void updateDevices();
+
     void comboBoxChanged(ComboBox* comboBoxThatHasChanged);
 	void buttonEvent(Button* button);
 	void timerCallback();
@@ -68,3 +71,4 @@ private:
 
 
 #endif  // __FRAMEGRABBEREDITOR_H__
+

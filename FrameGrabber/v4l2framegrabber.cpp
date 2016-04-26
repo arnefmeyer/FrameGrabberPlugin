@@ -1,3 +1,25 @@
+/*
+    ------------------------------------------------------------------
+
+    This file is part of the Open Ephys GUI
+    Copyright (C) 2014 Open Ephys
+
+    ------------------------------------------------------------------
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
 
 #include <errno.h>
 #include <fcntl.h>
@@ -501,5 +523,33 @@ std::vector<std::string> Camera::list_formats_as_string()
 	}
 
 	return strings;
+}
+
+int Camera::get_format_index(std::string fmt)
+{
+	std::vector<std::string> formats = list_formats_as_string();
+	auto it = std::find(formats.begin(), formats.end(), fmt);
+	if (it != formats.end())
+	{
+//		auto index = std::distance(formats.begin(), it);
+		return std::distance(formats.begin(), it);
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+std::string Camera::get_format_string(int index)
+{
+	std::vector<std::string> formats = list_formats_as_string();
+	if (index < formats.size())
+	{
+		return formats.at(index);
+	}
+	else
+	{
+		std::string("");
+	}
 }
 

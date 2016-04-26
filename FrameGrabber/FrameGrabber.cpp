@@ -1,4 +1,3 @@
-
 /*
     ------------------------------------------------------------------
 
@@ -166,7 +165,7 @@ private:
 
 
 FrameGrabber::FrameGrabber()
-    : GenericProcessor("Frame Grabber"), camera(NULL),
+    : GenericProcessor("Frame Grabber"), camera(NULL), currentFormatIndex(-1),
 	  frameCounter(0), Thread("FrameGrabberThread"), isRecording(false), framePath(""),
 	  imageQuality(25), colorMode(ColorMode::GRAY), writeMode(ImageWriteMode::RECORDING)
 
@@ -195,6 +194,13 @@ AudioProcessorEditor* FrameGrabber::createEditor()
     return editor;
 }
 
+void FrameGrabber::updateSettings()
+{
+	if (editor != NULL)
+	{
+		editor->update();
+	}
+}
 
 void FrameGrabber::startRecording()
 {
@@ -260,6 +266,7 @@ int FrameGrabber::startCamera(int fmt_index)
 	if (camera->is_running())
 	{
 		std::cout << "FrameGrabber: opened camera" << "\n";
+		currentFormatIndex = fmt_index;
 
 		File recPath = CoreServices::RecordNode::getRecordingPath();
 		framePath = String(recPath.getFullPathName() + recPath.separatorString + String("frames"));
@@ -277,6 +284,7 @@ int FrameGrabber::stopCamera()
 {
 	threadRunning = false;
 	waitForThreadToExit(1000);
+	currentFormatIndex = -1;
 
 	if (camera != NULL)
 	{
@@ -294,6 +302,11 @@ std::vector<std::string> FrameGrabber::getFormats()
 {
 	std::vector<std::string> formats = Camera::list_formats_as_string();
 	return formats;
+}
+
+int FrameGrabber::getCurrentFormatIndex()
+{
+	return currentFormatIndex;
 }
 
 void FrameGrabber::setImageQuality(int q)
@@ -419,3 +432,63 @@ void FrameGrabber::run()
 
     return;
 }
+
+void FrameGrabber::saveCustomParametersToXml(XmlElement* xml)
+{
+    xml->setAttribute("Type", "FrameGrabber");
+
+    XmlElement* paramXml = xml->createNewChildElement("PARAMETERS");
+    paramXml->setAttribute("ImageQuality", getImageQuality());
+	paramXml->setAttribute("ColorMode", getColorMode());
+	paramXml->setAttribute("WriteMode", getWriteMode());
+
+	XmlElement* deviceXml = xml->createNewChildElement("DEVICE");
+	deviceXml->setAttribute("API", "V4L2");
+	if (currentFormatIndex >= 0)
+	{
+		deviceXml->setAttribute("Format", Camera::get_format_string(currentFormatIndex));
+	}
+	else
+	{
+		deviceXml->setAttribute("Format", "");
+	}
+}
+
+void FrameGrabber::loadCustomParametersFromXml()
+{
+	forEachXmlChildElementWithTagName(*parametersAsXml,	paramXml, "PARAMETERS")
+	{
+    	int value;
+		value = paramXml->getIntAttribute("ImageQuality");
+		setImageQuality(value);
+    	value = paramXml->getIntAttribute("ColorMode");
+		setColorMode(value);
+    	value = paramXml->getIntAttribute("WriteMode");
+		setWriteMode(value);
+	}
+
+	forEachXmlChildElementWithTagName(*parametersAsXml,	deviceXml, "DEVICE")
+	{
+		String api = deviceXml->getStringAttribute("API");
+		if (api.compareIgnoreCase("V4L2") == 0)
+		{
+			String format = deviceXml->getStringAttribute("Format");
+			int index = Camera::get_format_index(format.toStdString());
+			if (index >= 0)
+			{
+				if (isCameraRunning())
+				{
+					stopCamera();
+				}
+				startCamera(index);
+			}
+		}
+		else
+		{
+			std::cout << "FrameGrabber API " << api << " not supported\n";
+		}
+	}
+
+	updateSettings();
+}
+

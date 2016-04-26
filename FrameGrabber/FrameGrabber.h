@@ -64,12 +64,14 @@ public:
 	void run();
 
 	AudioProcessorEditor* createEditor();
+	void updateSettings();
 
 	int startCamera(int fmt_index);
 	int stopCamera();
 	bool isCameraRunning();
 
 	std::vector<std::string> getFormats();
+	int getCurrentFormatIndex();
 
 	void setImageQuality(int q);
 	int getImageQuality();
@@ -83,6 +85,9 @@ public:
 	juce::int64 getFrameCount();
 	juce::int64 getWrittenFrameCount();
 
+	void saveCustomParametersToXml(XmlElement* parentElement);
+	void loadCustomParametersFromXml();
+
 private:
 
 	Camera* camera;
@@ -93,6 +98,7 @@ private:
 	int imageQuality;
 	int colorMode;
 	int writeMode;
+	int currentFormatIndex;
 	DiskThread *diskThread;
 
 	CriticalSection lock;

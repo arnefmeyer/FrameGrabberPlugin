@@ -93,7 +93,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
 	writeModeCombo->addItem("Never", ImageWriteMode::NEVER+1);
     writeModeCombo->addItem("Recording", ImageWriteMode::RECORDING+1);
 //	writeModeCombo->addItem("Acquisition", ImageWriteMode::ACQUISITION+1);
-	writeModeCombo->setSelectedId(proc->getWriteMode()+1, dontSendNotification);
+	writeModeCombo->setSelectedItemIndex(proc->getWriteMode(), dontSendNotification);
 	addAndMakeVisible(writeModeCombo);
 
 	fpsLabel = new Label("fps label", "FPS:");
@@ -115,6 +115,21 @@ FrameGrabberEditor::~FrameGrabberEditor()
 {
 }
 
+void FrameGrabberEditor::updateSettings()
+{
+	FrameGrabber* proc = (FrameGrabber*) getProcessor();
+
+	qualityCombo->setSelectedItemIndex(proc->getImageQuality()-1, dontSendNotification);
+	colorCombo->setSelectedItemIndex(proc->getColorMode(), dontSendNotification);
+	writeModeCombo->setSelectedItemIndex(proc->getWriteMode(), dontSendNotification);
+
+	updateDevices();
+	int deviceIndex = proc->getCurrentFormatIndex();
+	if (deviceIndex >= 0)
+	{
+		sourceCombo->setSelectedItemIndex(deviceIndex, sendNotificationAsync);
+	}
+}
 
 void FrameGrabberEditor::comboBoxChanged(ComboBox* cb)
 {
@@ -144,7 +159,7 @@ void FrameGrabberEditor::comboBoxChanged(ComboBox* cb)
     {
 		int index = cb->getSelectedItemIndex();
 		FrameGrabber* proc = (FrameGrabber*) getProcessor();
-		proc->setWriteMode(index-1);
+		proc->setWriteMode(index);
     }
 }
 
@@ -153,13 +168,19 @@ void FrameGrabberEditor::buttonEvent(Button* button)
 {
 	if (button == refreshButton)
 	{
-		sourceCombo->clear(dontSendNotification);
-		FrameGrabber* proc = (FrameGrabber*) getProcessor();
-		std::vector<std::string> formats = proc->getFormats();
-		for (int i=0; i<formats.size(); i++)
-		{
-		    sourceCombo->addItem(formats.at(i), i+1);
-		}
+		updateDevices();
+	}
+}
+
+
+void FrameGrabberEditor::updateDevices()
+{
+	sourceCombo->clear(dontSendNotification);
+	FrameGrabber* proc = (FrameGrabber*) getProcessor();
+	std::vector<std::string> formats = proc->getFormats();
+	for (int i=0; i<formats.size(); i++)
+	{
+	    sourceCombo->addItem(formats.at(i), i+1);
 	}
 }
 
@@ -172,3 +193,4 @@ void FrameGrabberEditor::timerCallback()
 
 	fpsLabel->setText(String("FPS: ") + String(fps), dontSendNotification);
 }
+
