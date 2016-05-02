@@ -272,7 +272,17 @@ int FrameGrabber::startCamera(int fmt_index)
 		framePath = String(recPath.getFullPathName() + recPath.separatorString + String("frames"));
 		diskThread = new DiskThread(File(framePath));
 
-		cv::namedWindow("FrameGrabber", cv::WINDOW_NORMAL | cv::WND_PROP_ASPECT_RATIO);
+		try
+		{
+			cv::namedWindow("FrameGrabber", cv::WINDOW_OPENGL & cv::WND_PROP_ASPECT_RATIO);
+			std::cout << "FrameGrabber using opengl window\n";
+		}
+		catch (cv::Exception& ex)
+		{
+			cv::namedWindow("FrameGrabber", cv::WINDOW_NORMAL & cv::WND_PROP_ASPECT_RATIO);
+			std::cout << "FrameGrabber using normal window (opencv not compiled with opengl support)\n";
+		}
+
 		threadRunning = true;
 		startThread();
 	}
