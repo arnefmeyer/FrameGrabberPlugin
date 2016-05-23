@@ -29,7 +29,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
     : GenericEditor(parentNode, useDefaultParameterEditors), lastFrameCount(0)
 
 {
-    desiredWidth = 300;
+    desiredWidth = 325;
 
 	FrameGrabber* proc = (FrameGrabber*) parentNode;
 
@@ -40,7 +40,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
 	addAndMakeVisible(sourceLabel);
 
     sourceCombo = new ComboBox();
-    sourceCombo->setBounds(110,25,175,20);
+    sourceCombo->setBounds(110,25,190,20);
     sourceCombo->addListener(this);
 
 	std::vector<std::string> formats = proc->getFormats();
@@ -104,8 +104,16 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
 
     refreshButton = new UtilityButton("Refresh", Font ("Small Text", 12, Font::plain));
     refreshButton->addListener(this);
-    refreshButton->setBounds(200, 50, 75, 20);
+    refreshButton->setBounds(225, 50, 75, 20);
     addAndMakeVisible(refreshButton);
+
+    resetCounterButton = new UtilityButton("Reset counter",Font("Default", 10, Font::plain));
+    resetCounterButton->addListener(this);
+    resetCounterButton->setBounds(200,75,100,20);
+    resetCounterButton->setClickingTogglesState(true);
+	resetCounterButton->setToggleState(proc->getResetFrameCounter(), dontSendNotification);
+    resetCounterButton->setTooltip("When this button is on, the frame counter will be reset for each new recording");
+    addAndMakeVisible(resetCounterButton);
 
 	startTimer(1000);
 }
@@ -169,6 +177,13 @@ void FrameGrabberEditor::buttonEvent(Button* button)
 	if (button == refreshButton)
 	{
 		updateDevices();
+	}
+	else if (button == resetCounterButton)
+	{
+		UtilityButton* btn = (UtilityButton*) button;
+		bool state = btn->getToggleState();
+		FrameGrabber* proc = (FrameGrabber*) getProcessor();
+		proc->setResetFrameCounter(state);
 	}
 }
 

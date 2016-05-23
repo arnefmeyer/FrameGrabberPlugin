@@ -62,6 +62,7 @@ private:
     ScopedPointer<Label> writeModeLabel;
 	ScopedPointer<Label> fpsLabel;
 	ScopedPointer<UtilityButton> refreshButton;
+	ScopedPointer<UtilityButton> resetCounterButton;
 
 	juce::int64 lastFrameCount;
 

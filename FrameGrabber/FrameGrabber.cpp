@@ -153,6 +153,13 @@ public:
 		return count;
 	}
 
+	void resetFrameCounter()
+	{
+		lock.enter();
+		frameCounter = 0;
+		lock.exit();
+	}
+
 private:
 	OwnedArray<FrameWithTS> frameBuffer;
 	juce::int64 frameCounter;
@@ -167,7 +174,8 @@ private:
 FrameGrabber::FrameGrabber()
     : GenericProcessor("Frame Grabber"), camera(NULL), currentFormatIndex(-1),
 	  frameCounter(0), Thread("FrameGrabberThread"), isRecording(false), framePath(""),
-	  imageQuality(25), colorMode(ColorMode::GRAY), writeMode(ImageWriteMode::RECORDING)
+	  imageQuality(25), colorMode(ColorMode::GRAY), writeMode(ImageWriteMode::RECORDING),
+	  resetFrameCounter(false)
 
 {
 	File recPath = CoreServices::RecordNode::getRecordingPath();
@@ -218,6 +226,10 @@ void FrameGrabber::startRecording()
 	}
 
 	lock.enter();
+	if (resetFrameCounter)
+	{
+		diskThread->resetFrameCounter();
+	}
 	diskThread->setDestinationPath(frameFile);
 	diskThread->startThread();
 	isRecording = true;
@@ -385,6 +397,17 @@ juce::int64 FrameGrabber::getFrameCount()
 	lock.exit();
 
 	return count;
+}
+
+
+void FrameGrabber::setResetFrameCounter(bool enable)
+{
+	resetFrameCounter = enable;
+}
+
+bool FrameGrabber::getResetFrameCounter()
+{
+	return resetFrameCounter;
 }
 
 

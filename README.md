@@ -20,14 +20,15 @@ What should work:
 - saving frames in jpeg format together with hardware time stamps
 - basic controls via ui (image quality, color, recording mode)
 - saving/loading parameters
+- resetting frame counter for each new recording
 
 To-do:
 
 - saving image file names and time stamps to a separate file (csv or hdf5?) to make post-processing easier
 - also save software time stamps?
-- option to reset frame counter for each recording
 - add support for other pixel formats, e.g., MJPG
 - add further video APIs, e.g., directshow
+- python/matlab functions to read frames and timestamps (including optional interpolation)
 
 ## Dependencies
 
@@ -36,7 +37,7 @@ This plugin requires the following libraries
 - video4linux2 (i.e. libv4l-0 and libv4l-dev under Ubuntu and Linux Mint)
 - opencv (version 2.4.x; core, dev, and highgui packages)
 
-# Installation
+## Installation
 
 Copy the FrameGrabber folder to the plugin folder of your GUI. Then build 
 the all plugins as described in the [wiki](https://open-ephys.atlassian.net/wiki/display/OEW/Linux).
@@ -48,4 +49,15 @@ had to replace all "int64" by "juce::int64" in
 and [CoreServices.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.cpp). 
 Note that this does not affect the rest of the GUI as it is using the juce 
 namespace anyway.
+
+## Changing camera parameters
+
+The v4l2 library comes with some tools that can be used to control camera 
+parameters. The easiest way to see all available v4l2 controls is to use the 
+v4l2-ctl tool from cmdline:
+
+*v4l2-ctl --all*
+
+An alternative is to use [guvcview](http://guvcview.sourceforge.net).
+
 

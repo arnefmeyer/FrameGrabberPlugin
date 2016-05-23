@@ -82,6 +82,9 @@ public:
 	void setWriteMode(int value);
 	int getWriteMode();
 
+	void setResetFrameCounter(bool enable);
+	bool getResetFrameCounter();
+
 	juce::int64 getFrameCount();
 	juce::int64 getWrittenFrameCount();
 
@@ -98,6 +101,7 @@ private:
 	int imageQuality;
 	int colorMode;
 	int writeMode;
+	bool resetFrameCounter;
 	int currentFormatIndex;
 	DiskThread *diskThread;
 
