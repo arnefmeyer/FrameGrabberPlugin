@@ -17,15 +17,13 @@ also run under Windows (e.g., using directshow) are highly welcome.
 What should work:
 
 - capturing frames from any v4l2 supported camera (using mmap; pixel format: YUYV)
-- saving frames in jpeg format together with hardware time stamps
-- basic controls via ui (image quality, color, recording mode)
+- saving frames in jpeg format; the file name format is "frame\_{frame\_index}\_{experiment\_number}\_{recording\_number}.jpg"
+- saving frame index, experiment number, recording number, and hardware/software time stamps to a separate csv file to make post-processing easier
+- basic controls via ui (image quality, color, recording mode, frame counter resetting)
 - saving/loading parameters
-- resetting frame counter for each new recording
 
 To-do:
 
-- saving image file names and time stamps to a separate file (csv or hdf5?) to make post-processing easier
-- also save software time stamps?
 - add support for other pixel formats, e.g., MJPG
 - add further video APIs, e.g., directshow
 - python/matlab functions to read frames and timestamps (including optional interpolation)
@@ -45,8 +43,10 @@ the all plugins as described in the [wiki](https://open-ephys.atlassian.net/wiki
 **Important** 
 It seems that there is a data type clash between JUCE and opencv. In my case, I 
 had to replace all "int64" by "juce::int64" in 
-[CoreServices.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.h) 
-and [CoreServices.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.cpp). 
+[CoreServices.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.h), 
+[CoreServices.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.cpp), 
+[GenericProcessor.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.h),
+and [GenericProcessor.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.cpp).
 Note that this does not affect the rest of the GUI as it is using the juce 
 namespace anyway.
 

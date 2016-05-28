@@ -40,10 +40,11 @@ classes are declared in the header file.
 class FrameWithTS
 {
 public:
-	FrameWithTS(cv::Mat *f, juce::int64 ts, int imgQuality = 75)
+	FrameWithTS(cv::Mat *f, juce::int64 src_ts, juce::int64 sw_ts, int imgQuality = 75)
 	{
 		frame = f;
-		timestamp = ts;
+		sourceTimestamp = src_ts;
+		softwareTimestamp = sw_ts;
 		imageQuality = imgQuality;
 	}
 
@@ -60,9 +61,14 @@ public:
 		return frame;
 	}
 
-	juce::int64 getTimestamp()
+	juce::int64 getSourceTimestamp()
 	{
-		return timestamp;
+		return sourceTimestamp;
+	}
+
+	juce::int64 getSoftwareTimestamp()
+	{
+		return softwareTimestamp;
 	}
 
 	int getImageQuality()
@@ -72,7 +78,8 @@ public:
 
 private:
 	cv::Mat* frame;
-	juce::int64 timestamp;
+	juce::int64 sourceTimestamp;
+	juce::int64 softwareTimestamp;
 	int imageQuality;
 };
 
@@ -80,9 +87,10 @@ private:
 class DiskThread : public Thread
 {
 public:
-	DiskThread(File dest) : Thread("DiskThread"), frameCounter(0)
+	DiskThread(File dest) : Thread("DiskThread"), frameCounter(0), experimentNumber(1), recordingNumber(0)
 	{
 		destPath = dest;
+		timestampFile = File();
 		frameBuffer.clear();
 		lastTS = -1;
 	}
@@ -97,6 +105,19 @@ public:
 		lock.enter();
 		destPath = File(f);
 		lock.exit();
+	}
+
+	void createTimestampFile(String name = "frame_timestamps")
+	{
+		char filePath[1024];
+		sprintf(filePath, "%s/%s.csv", destPath.getFullPathName().toRawUTF8(), name.toRawUTF8());
+		timestampFile = File(filePath);
+
+		if (!timestampFile.exists())
+		{
+			timestampFile.create();
+			timestampFile.appendText("# Frame index, Recording number, Experiment number, Source timestamp, Software timestamp\n");
+		}
 	}
 
 	void run()
@@ -118,13 +139,21 @@ public:
 
 			if (frame_ts != NULL)
 			{
-				char filename[1024];
-				sprintf(filename, "%s/frame_%.10lld_%lld.jpg", destPath.getFullPathName().toRawUTF8(), ++frameCounter, frame_ts->getTimestamp());
+				++frameCounter;
+
+				char filePath[1024];
+				sprintf(filePath, "%s/frame_%.10lld_%d_%d.jpg", destPath.getFullPathName().toRawUTF8(), frameCounter, experimentNumber, recordingNumber);
 
 				std::vector<int> compression_params;
 				compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
 				compression_params.push_back(frame_ts->getImageQuality());
-				cv::imwrite(filename, (*frame_ts->getFrame()), compression_params);
+				cv::imwrite(filePath, (*frame_ts->getFrame()), compression_params);
+
+				if (timestampFile != File::nonexistent)
+				{
+					String line = String::formatted("%lld,%d,%d,%lld,%lld\n", frameCounter, experimentNumber, recordingNumber, frame_ts->getSourceTimestamp(), frame_ts->getSoftwareTimestamp());
+					timestampFile.appendText(line);
+				}
 			}
 		}
 	}
@@ -136,10 +165,10 @@ public:
 		lock.exit();
 	}
 
-	void addFrame(cv::Mat *frame, juce::int64 ts, int quality = 95)
+	void addFrame(cv::Mat *frame, juce::int64 srcTs, juce::int64 swTs, int quality = 95)
 	{
 		lock.enter();
-		frameBuffer.add(new FrameWithTS(frame, ts, quality));
+		frameBuffer.add(new FrameWithTS(frame, srcTs, swTs, quality));
 		lock.exit();
 	}
 
@@ -160,10 +189,23 @@ public:
 		lock.exit();
 	}
 
+	void setExperimentNumber(int n)
+	{
+		experimentNumber = n;
+	}
+
+	void setRecordingNumber(int n)
+	{
+		recordingNumber = n;
+	}
+
 private:
 	OwnedArray<FrameWithTS> frameBuffer;
 	juce::int64 frameCounter;
+	int experimentNumber;
+	int recordingNumber;
 	File destPath;
+	File timestampFile;
 	CriticalSection lock;
 	bool threadRunning;
 
@@ -231,6 +273,9 @@ void FrameGrabber::startRecording()
 		diskThread->resetFrameCounter();
 	}
 	diskThread->setDestinationPath(frameFile);
+	diskThread->createTimestampFile();
+	diskThread->setExperimentNumber(CoreServices::RecordNode::getExperimentNumber());
+	diskThread->setRecordingNumber(CoreServices::RecordNode::getRecordingNumber());
 	diskThread->startThread();
 	isRecording = true;
 	lock.exit();
@@ -423,7 +468,8 @@ juce::int64 FrameGrabber::getWrittenFrameCount()
 
 void FrameGrabber::run()
 {
-	juce::int64 lastTS;
+	juce::int64 srcTS;
+	juce::int64 swTS;
 	bool recStatus;
 	int imgQuality;
 	bool winState;
@@ -451,8 +497,9 @@ void FrameGrabber::run()
 				writeImage = (wMode == ImageWriteMode::ACQUISITION) || (wMode == ImageWriteMode::RECORDING && recStatus);
 				if (writeImage)
 				{
-					lastTS = CoreServices::getGlobalTimestamp();
-					diskThread->addFrame(&frame, lastTS, imgQuality);
+					srcTS = CoreServices::getGlobalTimestamp();
+					swTS = CoreServices::getSoftwareTimestamp();
+					diskThread->addFrame(&frame, srcTS, swTS, imgQuality);
 				}
 
 				cv::imshow("FrameGrabber", frame);
@@ -474,6 +521,7 @@ void FrameGrabber::saveCustomParametersToXml(XmlElement* xml)
     paramXml->setAttribute("ImageQuality", getImageQuality());
 	paramXml->setAttribute("ColorMode", getColorMode());
 	paramXml->setAttribute("WriteMode", getWriteMode());
+	paramXml->setAttribute("ResetFrameCounter", getResetFrameCounter());
 
 	XmlElement* deviceXml = xml->createNewChildElement("DEVICE");
 	deviceXml->setAttribute("API", "V4L2");
@@ -498,6 +546,8 @@ void FrameGrabber::loadCustomParametersFromXml()
 		setColorMode(value);
     	value = paramXml->getIntAttribute("WriteMode");
 		setWriteMode(value);
+		value = paramXml->getIntAttribute("ResetFrameCounter");
+		setResetFrameCounter(value);
 	}
 
 	forEachXmlChildElementWithTagName(*parametersAsXml,	deviceXml, "DEVICE")
