@@ -217,11 +217,11 @@ FrameGrabber::FrameGrabber()
     : GenericProcessor("Frame Grabber"), camera(NULL), currentFormatIndex(-1),
 	  frameCounter(0), Thread("FrameGrabberThread"), isRecording(false), framePath(""),
 	  imageQuality(25), colorMode(ColorMode::GRAY), writeMode(ImageWriteMode::RECORDING),
-	  resetFrameCounter(false)
+	  resetFrameCounter(false), dirName("frames")
 
 {
 	File recPath = CoreServices::RecordNode::getRecordingPath();
-	framePath = String(recPath.getFullPathName() + recPath.separatorString + String("frames"));
+	framePath = String(recPath.getFullPathName() + recPath.separatorString + dirName);
 	diskThread = new DiskThread(File(framePath));
 }
 
@@ -255,7 +255,7 @@ void FrameGrabber::updateSettings()
 void FrameGrabber::startRecording()
 {
 	File recPath = CoreServices::RecordNode::getRecordingPath();
-	framePath = String(recPath.getFullPathName() + recPath.separatorString + String("frames"));
+	framePath = String(recPath.getFullPathName() + recPath.separatorString + dirName);
 
 	File frameFile = File(framePath);
 	if (!frameFile.isDirectory())
@@ -268,6 +268,7 @@ void FrameGrabber::startRecording()
 	}
 
 	lock.enter();
+
 	if (resetFrameCounter)
 	{
 		diskThread->resetFrameCounter();
@@ -277,8 +278,16 @@ void FrameGrabber::startRecording()
 	diskThread->setExperimentNumber(CoreServices::RecordNode::getExperimentNumber());
 	diskThread->setRecordingNumber(CoreServices::RecordNode::getRecordingNumber());
 	diskThread->startThread();
+
 	isRecording = true;
+
 	lock.exit();
+
+	if (writeMode == RECORDING)
+	{
+		FrameGrabberEditor* e = (FrameGrabberEditor*) editor.get();
+		e->disableControls();
+	}
 }
 
 
@@ -288,6 +297,12 @@ void FrameGrabber::stopRecording()
 	isRecording = false;
 	diskThread->stopThread();
 	lock.exit();
+
+	if (writeMode == RECORDING)
+	{
+		FrameGrabberEditor* e = (FrameGrabberEditor*) editor.get();
+		e->enableControls();
+	}
 }
 
 
@@ -322,11 +337,11 @@ int FrameGrabber::startCamera(int fmt_index)
 
 	if (camera->is_running())
 	{
-		std::cout << "FrameGrabber: opened camera" << "\n";
+		std::cout << "FrameGrabber: opened camera " << camera->get_format()->to_string() << "\n";
 		currentFormatIndex = fmt_index;
 
 		File recPath = CoreServices::RecordNode::getRecordingPath();
-		framePath = String(recPath.getFullPathName() + recPath.separatorString + String("frames"));
+		framePath = String(recPath.getFullPathName() + recPath.separatorString + dirName);
 		diskThread = new DiskThread(File(framePath));
 
 		try
@@ -450,9 +465,32 @@ void FrameGrabber::setResetFrameCounter(bool enable)
 	resetFrameCounter = enable;
 }
 
+
 bool FrameGrabber::getResetFrameCounter()
 {
 	return resetFrameCounter;
+}
+
+
+void FrameGrabber::setDirectoryName(String name)
+{
+	if (name != getDirectoryName())
+	{
+		if (File::createLegalFileName(name) == name)
+		{
+			dirName = name;
+		}
+		else
+		{
+			std::cout << "FrameGrabber invalid directory name: " << name.toStdString() << "\n";
+		}
+	}
+}
+
+
+String FrameGrabber::getDirectoryName()
+{
+	return dirName;
 }
 
 
@@ -513,6 +551,7 @@ void FrameGrabber::run()
     return;
 }
 
+
 void FrameGrabber::saveCustomParametersToXml(XmlElement* xml)
 {
     xml->setAttribute("Type", "FrameGrabber");
@@ -522,6 +561,7 @@ void FrameGrabber::saveCustomParametersToXml(XmlElement* xml)
 	paramXml->setAttribute("ColorMode", getColorMode());
 	paramXml->setAttribute("WriteMode", getWriteMode());
 	paramXml->setAttribute("ResetFrameCounter", getResetFrameCounter());
+	paramXml->setAttribute("DirectoryName", getDirectoryName());
 
 	XmlElement* deviceXml = xml->createNewChildElement("DEVICE");
 	deviceXml->setAttribute("API", "V4L2");
@@ -535,19 +575,25 @@ void FrameGrabber::saveCustomParametersToXml(XmlElement* xml)
 	}
 }
 
+
 void FrameGrabber::loadCustomParametersFromXml()
 {
 	forEachXmlChildElementWithTagName(*parametersAsXml,	paramXml, "PARAMETERS")
 	{
-    	int value;
-		value = paramXml->getIntAttribute("ImageQuality");
-		setImageQuality(value);
-    	value = paramXml->getIntAttribute("ColorMode");
-		setColorMode(value);
-    	value = paramXml->getIntAttribute("WriteMode");
-		setWriteMode(value);
-		value = paramXml->getIntAttribute("ResetFrameCounter");
-		setResetFrameCounter(value);
+		if (paramXml->hasAttribute("ImageQuality"))
+			setImageQuality(paramXml->getIntAttribute("ImageQuality"));
+
+		if (paramXml->hasAttribute("ColorMode"))
+			setColorMode(paramXml->getIntAttribute("ColorMode"));
+
+    	if (paramXml->hasAttribute("WriteMode"))
+			setWriteMode(paramXml->getIntAttribute("WriteMode"));
+
+		if (paramXml->hasAttribute("ResetFrameCounter"))
+			setResetFrameCounter(paramXml->getIntAttribute("ResetFrameCounter"));
+
+		if (paramXml->hasAttribute("DirectoryName"))
+			setDirectoryName(paramXml->getStringAttribute("DirectoryName"));
 	}
 
 	forEachXmlChildElementWithTagName(*parametersAsXml,	deviceXml, "DEVICE")

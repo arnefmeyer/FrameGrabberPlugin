@@ -69,6 +69,7 @@ public:
 	int init();
 	int start();
 	bool is_running() { return has_started; }
+	CameraFormat* get_format();
 
 	cv::Mat read_frame();
 

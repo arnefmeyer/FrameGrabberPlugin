@@ -16,15 +16,14 @@ also run under Windows (e.g., using directshow) are highly welcome.
 
 What should work:
 
-- capturing frames from any v4l2 supported camera (using mmap; pixel format: YUYV)
+- capturing frames from any v4l2 supported camera (using mmap; pixel formats: YUYV, MJPG)
 - saving frames in jpeg format; the file name format is "frame\_{frame\_index}\_{experiment\_number}\_{recording\_number}.jpg"
 - saving frame index, experiment number, recording number, and hardware/software time stamps to a separate csv file to make post-processing easier
-- basic controls via ui (image quality, color, recording mode, frame counter resetting)
+- basic controls via ui (image quality, color, recording mode, frame counter resetting, frame directory name)
 - saving/loading parameters
 
 To-do:
 
-- add support for other pixel formats, e.g., MJPG
 - add further video APIs, e.g., directshow
 - python/matlab functions to read frames and timestamps (including optional interpolation)
 

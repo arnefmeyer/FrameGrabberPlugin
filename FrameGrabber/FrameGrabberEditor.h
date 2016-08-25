@@ -36,7 +36,8 @@
 
 */
 
-class FrameGrabberEditor : public GenericEditor, public ComboBox::Listener
+class FrameGrabberEditor : public GenericEditor, public ComboBox::Listener,
+public Label::Listener
 
 {
 public:
@@ -48,7 +49,11 @@ public:
 
     void comboBoxChanged(ComboBox* comboBoxThatHasChanged);
 	void buttonEvent(Button* button);
+	void labelTextChanged(juce::Label *);
 	void timerCallback();
+
+    void disableControls();
+	void enableControls();
 
 private:
 
@@ -63,6 +68,7 @@ private:
 	ScopedPointer<Label> fpsLabel;
 	ScopedPointer<UtilityButton> refreshButton;
 	ScopedPointer<UtilityButton> resetCounterButton;
+	ScopedPointer<Label> dirNameEdit;
 
 	juce::int64 lastFrameCount;
 

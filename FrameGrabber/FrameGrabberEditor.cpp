@@ -29,7 +29,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
     : GenericEditor(parentNode, useDefaultParameterEditors), lastFrameCount(0)
 
 {
-    desiredWidth = 325;
+    desiredWidth = 350;
 
 	FrameGrabber* proc = (FrameGrabber*) parentNode;
 
@@ -40,7 +40,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
 	addAndMakeVisible(sourceLabel);
 
     sourceCombo = new ComboBox();
-    sourceCombo->setBounds(110,25,190,20);
+    sourceCombo->setBounds(110,25,220,20);
     sourceCombo->addListener(this);
 
 	std::vector<std::string> formats = proc->getFormats();
@@ -57,7 +57,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
 	addAndMakeVisible(qualityLabel);
 
     qualityCombo = new ComboBox();
-    qualityCombo->setBounds(110,50,75,20);
+    qualityCombo->setBounds(110,50-3,75,20);
     qualityCombo->addListener(this);
 
     for (int i=0; i<100; i++)
@@ -97,25 +97,35 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
 	addAndMakeVisible(writeModeCombo);
 
 	fpsLabel = new Label("fps label", "FPS:");
-	fpsLabel->setBounds(200,100,50,20);
+	fpsLabel->setBounds(200, 50, 50, 20); // 200,100,50,20);
     fpsLabel->setFont(Font("Small Text", 12, Font::plain));
     fpsLabel->setColour(Label::textColourId, Colours::darkgrey);
 	addAndMakeVisible(fpsLabel);
 
     refreshButton = new UtilityButton("Refresh", Font ("Small Text", 12, Font::plain));
     refreshButton->addListener(this);
-    refreshButton->setBounds(225, 50, 75, 20);
+    refreshButton->setBounds(260, 50, 70, 20);
     addAndMakeVisible(refreshButton);
 
-    resetCounterButton = new UtilityButton("Reset counter",Font("Default", 10, Font::plain));
+    resetCounterButton = new UtilityButton("Reset counter",Font("Small Text", 12, Font::plain));
     resetCounterButton->addListener(this);
-    resetCounterButton->setBounds(200,75,100,20);
+    resetCounterButton->setBounds(200,75,130,20);
     resetCounterButton->setClickingTogglesState(true);
 	resetCounterButton->setToggleState(proc->getResetFrameCounter(), dontSendNotification);
     resetCounterButton->setTooltip("When this button is on, the frame counter will be reset for each new recording");
     addAndMakeVisible(resetCounterButton);
 
-	startTimer(1000);
+	dirNameEdit = new Label("dirName", proc->getDirectoryName());
+    dirNameEdit->setBounds(200,100,130,20);
+    dirNameEdit->setFont(Font("Default", 15, Font::plain));
+    dirNameEdit->setColour(Label::textColourId, Colours::white);
+	dirNameEdit->setColour(Label::backgroundColourId, Colours::grey);
+    dirNameEdit->setEditable(true);
+    dirNameEdit->addListener(this);
+	dirNameEdit->setTooltip("Frame directory name");
+	addAndMakeVisible(dirNameEdit);
+
+	startTimer(1000);  // update FPS label once per second
 }
 
 
@@ -188,6 +198,18 @@ void FrameGrabberEditor::buttonEvent(Button* button)
 }
 
 
+void FrameGrabberEditor::labelTextChanged(juce::Label *label)
+{
+	if (label == dirNameEdit)
+	{
+	    String name = label->getTextValue().getValue();
+
+		FrameGrabber *p = (FrameGrabber *)getProcessor();
+		p->setDirectoryName(name);
+	}
+}
+
+
 void FrameGrabberEditor::updateDevices()
 {
 	sourceCombo->clear(dontSendNotification);
@@ -199,6 +221,7 @@ void FrameGrabberEditor::updateDevices()
 	}
 }
 
+
 void FrameGrabberEditor::timerCallback()
 {
 	FrameGrabber* proc = (FrameGrabber*) getProcessor();
@@ -207,5 +230,37 @@ void FrameGrabberEditor::timerCallback()
 	lastFrameCount = frameCount;
 
 	fpsLabel->setText(String("FPS: ") + String(fps), dontSendNotification);
+}
+
+
+void FrameGrabberEditor::disableControls()
+{
+	FrameGrabber* proc = (FrameGrabber*) getProcessor();
+	if (proc->getWriteMode() == RECORDING)
+	{
+		sourceCombo->setEnabled(false);
+    	qualityCombo->setEnabled(false);
+    	colorCombo->setEnabled(false);
+    	writeModeCombo->setEnabled(false);
+		refreshButton->setEnabledState(false);
+		resetCounterButton->setEnabledState(false);
+		dirNameEdit->setEditable(false);
+	}
+}
+
+
+void FrameGrabberEditor::enableControls()
+{
+	FrameGrabber* proc = (FrameGrabber*) getProcessor();
+	if (proc->getWriteMode() == RECORDING)
+	{
+		sourceCombo->setEnabled(true);
+    	qualityCombo->setEnabled(true);
+    	colorCombo->setEnabled(true);
+    	writeModeCombo->setEnabled(true);
+		refreshButton->setEnabledState(true);
+		resetCounterButton->setEnabledState(true);
+		dirNameEdit->setEditable(true);
+	}
 }
 

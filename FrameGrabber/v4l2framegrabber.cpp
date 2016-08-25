@@ -41,6 +41,10 @@
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
 
+/*
+	Helper functions
+*/
+
 static int xioctl(int fd, int request, void *arg)
 {
     int r;
@@ -66,6 +70,10 @@ static std::string fourcc_to_string(__u32 pixelformat)
 	return s;
 }
 
+
+/*
+	Camera format class
+*/
 
 CameraFormat::CameraFormat()
 {
@@ -93,6 +101,7 @@ CameraFormat::CameraFormat(std::string dev, __u8* crd, __u8* drv, __u32 pxlfmt, 
 	denominator = denom;
 }
 
+
 void CameraFormat::print()
 {
 	std::cout << "Device: " << device << "\n";
@@ -103,6 +112,7 @@ void CameraFormat::print()
 	std::cout << "Height: " << height << "\n";
 	std::cout << "Framerate: " << numerator << "/" << denominator << "\n";
 }
+
 
 std::string CameraFormat::to_string()
 {
@@ -118,6 +128,10 @@ std::string CameraFormat::to_string()
 }
 
 
+/*
+	Camera class
+*/
+
 Camera::Camera()
 {
 	fd = -1;
@@ -125,11 +139,13 @@ Camera::Camera()
 	has_started = false;
 }
 
+
 Camera::Camera(int fmt_index)
 {
 	std::vector<CameraFormat> formats = Camera::list_formats();
 	use_fmt = CameraFormat(formats.at(fmt_index));
 }
+
 
 Camera::Camera(CameraFormat &fmt)
 {
@@ -141,6 +157,7 @@ Camera::Camera(CameraFormat &fmt)
 	use_fmt.pixelformat = fmt.pixelformat;
 }
 
+
 Camera::Camera(std::string dev, __u32 w, __u32 h, __u32 numerator, __u32 denominator, __u32 pixelfmt)
 {
 	use_fmt.device = dev;
@@ -150,6 +167,7 @@ Camera::Camera(std::string dev, __u32 w, __u32 h, __u32 numerator, __u32 denomin
 	use_fmt.denominator = denominator;
 	use_fmt.pixelformat = pixelfmt;
 }
+
 
 Camera::~Camera()
 {
@@ -166,6 +184,7 @@ Camera::~Camera()
 		close(fd);
 	}
 }
+
 
 int Camera::init()
 {
@@ -190,6 +209,7 @@ int Camera::init()
 
 	return 0;
 }
+
 
 int Camera::start()
 {
@@ -319,6 +339,12 @@ int Camera::init_mmap()
 }
 
 
+CameraFormat* Camera::get_format()
+{
+	return &use_fmt;
+}
+
+
 cv::Mat Camera::read_frame()
 {
 	cv::Mat mat;
@@ -376,7 +402,9 @@ cv::Mat Camera::read_frame()
 	}
 	else if (use_fmt.pixelformat == V4L2_PIX_FMT_MJPEG)
 	{
-		mat = cv::Mat(use_fmt.height, use_fmt.width, CV_8UC3, buffers[buf.index].start);
+		mat = cv::Mat(use_fmt.height, use_fmt.width, CV_8U);
+    	imdecode(cv::Mat(1, use_fmt.width*use_fmt.height, CV_8U, (unsigned char*)buffers[buf.index].start),  cv::IMREAD_COLOR, &mat);
+
 	}
 	else if (use_fmt.pixelformat == V4L2_PIX_FMT_YUYV)
 	{
@@ -512,6 +540,7 @@ std::vector<CameraFormat> Camera::list_formats()
 	return formats;
 }
 
+
 std::vector<std::string> Camera::list_formats_as_string()
 {
 	std::vector<std::string> strings;
@@ -525,13 +554,13 @@ std::vector<std::string> Camera::list_formats_as_string()
 	return strings;
 }
 
+
 int Camera::get_format_index(std::string fmt)
 {
 	std::vector<std::string> formats = list_formats_as_string();
 	auto it = std::find(formats.begin(), formats.end(), fmt);
 	if (it != formats.end())
 	{
-//		auto index = std::distance(formats.begin(), it);
 		return std::distance(formats.begin(), it);
 	}
 	else
@@ -539,6 +568,7 @@ int Camera::get_format_index(std::string fmt)
 		return -1;
 	}
 }
+
 
 std::string Camera::get_format_string(int index)
 {
@@ -552,4 +582,5 @@ std::string Camera::get_format_string(int index)
 		std::string("");
 	}
 }
+
 

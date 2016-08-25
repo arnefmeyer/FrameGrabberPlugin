@@ -85,6 +85,9 @@ public:
 	void setResetFrameCounter(bool enable);
 	bool getResetFrameCounter();
 
+	void setDirectoryName(String name);
+	String getDirectoryName();
+
 	juce::int64 getFrameCount();
 	juce::int64 getWrittenFrameCount();
 
@@ -102,6 +105,7 @@ private:
 	int colorMode;
 	int writeMode;
 	bool resetFrameCounter;
+	String dirName;
 	int currentFormatIndex;
 	DiskThread *diskThread;
 
@@ -113,3 +117,4 @@ private:
 
 
 #endif  // FrameGrabber_H_INCLUDED
+
