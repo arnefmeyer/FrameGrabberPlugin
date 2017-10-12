@@ -72,6 +72,7 @@ public:
 	CameraFormat* get_format();
 
 	cv::Mat read_frame();
+	cv::Mat read_frame(bool timeout, int timeout_sec = 2, int timeout_usec = 0);
 
 	static std::vector<CameraFormat> list_formats();
 	static std::vector<std::string> list_formats_as_string();

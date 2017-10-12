@@ -84,92 +84,46 @@ private:
 };
 
 
-class DiskThread : public Thread
+class WriteThread : public Thread
 {
 public:
-	DiskThread(File dest) : Thread("DiskThread"), frameCounter(0), experimentNumber(1), recordingNumber(0)
-	{
-		destPath = dest;
-		timestampFile = File();
+    WriteThread()
+        : Thread ("WriteThread"), framePath(), timestampFile(), frameCounter(0), experimentNumber(1), recordingNumber(0), isRecording(false)
+    {
 		frameBuffer.clear();
-		lastTS = -1;
-	}
 
-	~DiskThread()
-	{
-		frameBuffer.clear();
-	}
+        startThread();
+    }
 
-	void setDestinationPath(File &f)
+    ~WriteThread()
+    {
+        stopThread(1000);
+		clearBuffer();
+    }
+
+	void setFramePath(File &f)
 	{
 		lock.enter();
-		destPath = File(f);
+		framePath = File(f);
 		lock.exit();
 	}
 
 	void createTimestampFile(String name = "frame_timestamps")
 	{
-		char filePath[1024];
-		sprintf(filePath, "%s/%s.csv", destPath.getFullPathName().toRawUTF8(), name.toRawUTF8());
-		timestampFile = File(filePath);
 
+		if (!framePath.exists() || !framePath.isDirectory())
+		{
+			 framePath.createDirectory();
+		}
+
+	    String filePath(framePath.getFullPathName() + framePath.separatorString + name + ".csv");
+
+		timestampFile = File(filePath);
 		if (!timestampFile.exists())
 		{
 			timestampFile.create();
 			timestampFile.appendText("# Frame index, Recording number, Experiment number, Source timestamp, Software timestamp\n");
 		}
-	}
-
-	void run()
-	{
-		FrameWithTS* frame_ts;
-		threadRunning = true;
-		int imgQuality;
-
-		while (threadRunning)
-		{
-			frame_ts = NULL;
-
-			lock.enter();
-			if (frameBuffer.size() > 0)
-			{
-				frame_ts = frameBuffer.removeAndReturn(0);
-			}
-			lock.exit();
-
-			if (frame_ts != NULL)
-			{
-				++frameCounter;
-
-				char filePath[1024];
-				sprintf(filePath, "%s/frame_%.10lld_%d_%d.jpg", destPath.getFullPathName().toRawUTF8(), frameCounter, experimentNumber, recordingNumber);
-
-				std::vector<int> compression_params;
-				compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
-				compression_params.push_back(frame_ts->getImageQuality());
-				cv::imwrite(filePath, (*frame_ts->getFrame()), compression_params);
-
-				if (timestampFile != File::nonexistent)
-				{
-					String line = String::formatted("%lld,%d,%d,%lld,%lld\n", frameCounter, experimentNumber, recordingNumber, frame_ts->getSourceTimestamp(), frame_ts->getSoftwareTimestamp());
-					timestampFile.appendText(line);
-				}
-			}
-		}
-	}
-
-	void stopThread()
-	{
-		lock.enter();
-		threadRunning = false;
-		lock.exit();
-	}
-
-	void addFrame(cv::Mat *frame, juce::int64 srcTs, juce::int64 swTs, int quality = 95)
-	{
-		lock.enter();
-		frameBuffer.add(new FrameWithTS(frame, srcTs, swTs, quality));
-		lock.exit();
 	}
 
 	juce::int64 getFrameCount()
@@ -191,25 +145,130 @@ public:
 
 	void setExperimentNumber(int n)
 	{
+		lock.enter();
 		experimentNumber = n;
+		lock.exit();
 	}
 
 	void setRecordingNumber(int n)
 	{
+		lock.enter();
 		recordingNumber = n;
+		lock.exit();
 	}
+
+	bool addFrame(cv::Mat *frame, juce::int64 srcTs, juce::int64 swTs, int quality = 95)
+	{
+		bool status;
+
+		if (isThreadRunning())
+		{
+			lock.enter();
+			frameBuffer.add(new FrameWithTS(frame, srcTs, swTs, quality));
+			lock.exit();
+			status = true;
+		}
+		else
+		{
+			status = false;
+		}
+
+		return status;
+	}
+
+	void clearBuffer()
+	{
+		lock.enter();
+		/* for some reason frameBuffer.clear() didn't delete the content ... */
+		while (frameBuffer.size() > 0)
+		{
+			frameBuffer.removeAndReturn(0);
+		}
+		lock.exit();
+	}
+
+	bool hasValidPath()
+	{
+		bool status;
+
+		lock.enter();
+		status = (framePath.exists() && timestampFile.exists());
+		lock.exit();
+
+		return status;
+	}
+
+	void setRecording(bool status)
+	{
+		lock.enter();
+		isRecording = status;
+		lock.exit();
+	}
+
+    void run() override
+    {
+		FrameWithTS* frame_ts;
+		int imgQuality;
+		String fileName;
+		String filePath;
+		String line;
+
+        while (!threadShouldExit())
+        {
+
+			if (isRecording && hasValidPath())
+			{
+				if (frameBuffer.size() > 0)
+				{
+					frame_ts = frameBuffer.removeAndReturn(0);
+				}
+				else
+				{
+					frame_ts = NULL;
+				}
+
+				if (frame_ts != NULL)
+				{
+					lock.enter();
+
+					++frameCounter;
+
+					fileName = String::formatted("frame_%.10lld_%d_%d.jpg", frameCounter, experimentNumber, recordingNumber);
+		            filePath = String(framePath.getFullPathName() + framePath.separatorString + fileName);
+
+					lock.exit();
+
+					std::vector<int> compression_params;
+					compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
+					compression_params.push_back(frame_ts->getImageQuality());
+					cv::imwrite(filePath.toRawUTF8(), (*frame_ts->getFrame()), compression_params);
+
+					lock.enter();
+					line = String::formatted("%lld,%d,%d,%lld,%lld\n", frameCounter, experimentNumber, recordingNumber, frame_ts->getSourceTimestamp(), frame_ts->getSoftwareTimestamp());
+					lock.exit();
+					timestampFile.appendText(line);
+
+				}
+
+            }
+			else
+			{
+				sleep(50);
+			}
+        }
+    }
 
 private:
 	OwnedArray<FrameWithTS> frameBuffer;
 	juce::int64 frameCounter;
 	int experimentNumber;
 	int recordingNumber;
-	File destPath;
+	File framePath;
 	File timestampFile;
+	bool isRecording;
 	CriticalSection lock;
-	bool threadRunning;
 
-	juce::int64 lastTS;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WriteThread)
 };
 
 
@@ -220,20 +279,19 @@ FrameGrabber::FrameGrabber()
 	  resetFrameCounter(false), dirName("frames")
 
 {
+    setProcessorType(PROCESSOR_TYPE_SOURCE);
+
 	File recPath = CoreServices::RecordNode::getRecordingPath();
-	framePath = String(recPath.getFullPathName() + recPath.separatorString + dirName);
-	diskThread = new DiskThread(File(framePath));
+	framePath = File(recPath.getFullPathName() + recPath.separatorString + dirName);
+
+	writeThread = new WriteThread();
 }
+
 
 FrameGrabber::~FrameGrabber()
 {
 	stopCamera();
-
-	if (diskThread != NULL)
-	{
-		diskThread->waitForThreadToExit(10000);
-		delete diskThread;
-	}
+	delete writeThread;
 }
 
 
@@ -244,6 +302,7 @@ AudioProcessorEditor* FrameGrabber::createEditor()
     return editor;
 }
 
+
 void FrameGrabber::updateSettings()
 {
 	if (editor != NULL)
@@ -252,51 +311,50 @@ void FrameGrabber::updateSettings()
 	}
 }
 
+
 void FrameGrabber::startRecording()
 {
 	File recPath = CoreServices::RecordNode::getRecordingPath();
-	framePath = String(recPath.getFullPathName() + recPath.separatorString + dirName);
+	framePath = File(recPath.getFullPathName() + recPath.separatorString + dirName);
 
-	File frameFile = File(framePath);
-	if (!frameFile.isDirectory())
+	if (!framePath.exists() && !framePath.isDirectory())
 	{
-		Result result = frameFile.createDirectory();
+		Result result = framePath.createDirectory();
 		if (result.failed())
 		{
-			std::cout << "FrameGrabber: failed to create frame path!" << "\n";
+			std::cout << "FrameGrabber: failed to create frame path " << framePath.getFullPathName().toRawUTF8() << "\n";
+			framePath = File();
 		}
 	}
 
-	lock.enter();
-
-	if (resetFrameCounter)
+	if (framePath.exists())
 	{
-		diskThread->resetFrameCounter();
-	}
-	diskThread->setDestinationPath(frameFile);
-	diskThread->createTimestampFile();
-	diskThread->setExperimentNumber(CoreServices::RecordNode::getExperimentNumber());
-	diskThread->setRecordingNumber(CoreServices::RecordNode::getRecordingNumber());
-	diskThread->startThread();
+		writeThread->setRecording(false);
+		writeThread->setFramePath(framePath);
+		writeThread->setExperimentNumber(CoreServices::RecordNode::getExperimentNumber());
+		writeThread->setRecordingNumber(CoreServices::RecordNode::getRecordingNumber());
+		writeThread->createTimestampFile();
+		if (resetFrameCounter)
+		{
+			writeThread->resetFrameCounter();
+		}
+		writeThread->setRecording(true);
 
-	isRecording = true;
+		isRecording = true;
 
-	lock.exit();
-
-	if (writeMode == RECORDING)
-	{
-		FrameGrabberEditor* e = (FrameGrabberEditor*) editor.get();
-		e->disableControls();
+		if (writeMode == RECORDING)
+		{
+			FrameGrabberEditor* e = (FrameGrabberEditor*) editor.get();
+			e->disableControls();
+		}
 	}
 }
 
 
 void FrameGrabber::stopRecording()
 {
-	lock.enter();
 	isRecording = false;
-	diskThread->stopThread();
-	lock.exit();
+	writeThread->setRecording(false);
 
 	if (writeMode == RECORDING)
 	{
@@ -306,9 +364,55 @@ void FrameGrabber::stopRecording()
 }
 
 
-void FrameGrabber::process(AudioSampleBuffer& buffer,
-                  	       MidiBuffer& events)
+void FrameGrabber::process(AudioSampleBuffer& buffer)
 {
+}
+
+
+void FrameGrabber::run()
+{
+	juce::int64 srcTS;
+	juce::int64 swTS;
+	bool recStatus;
+	int imgQuality;
+	bool winState;
+	bool cMode;
+	int wMode;
+
+    while (!threadShouldExit())
+    {
+		if (camera != NULL && camera->is_running())
+		{
+
+			cv::Mat frame = camera->read_frame();
+			if (!frame.empty())
+			{
+				bool writeImage = false;
+
+				lock.enter();
+				imgQuality = imageQuality;
+				recStatus = isRecording;
+				wMode = writeMode;
+				cMode = colorMode;
+
+				writeImage = (wMode == ImageWriteMode::ACQUISITION) || (wMode == ImageWriteMode::RECORDING && recStatus);
+				lock.exit();
+
+				if (writeImage)
+				{
+					srcTS = CoreServices::getGlobalTimestamp();
+					swTS = CoreServices::getSoftwareTimestamp();
+					writeThread->addFrame(&frame, srcTS, swTS, imgQuality);
+				}
+
+				cv::imshow("FrameGrabber", frame);
+				cv::waitKey(1);
+
+				frameCounter++;
+			}
+		}
+    }
+
 }
 
 int FrameGrabber::startCamera(int fmt_index)
@@ -340,10 +444,6 @@ int FrameGrabber::startCamera(int fmt_index)
 		std::cout << "FrameGrabber: opened camera " << camera->get_format()->to_string() << "\n";
 		currentFormatIndex = fmt_index;
 
-		File recPath = CoreServices::RecordNode::getRecordingPath();
-		framePath = String(recPath.getFullPathName() + recPath.separatorString + dirName);
-		diskThread = new DiskThread(File(framePath));
-
 		try
 		{
 			cv::namedWindow("FrameGrabber", cv::WINDOW_OPENGL & cv::WND_PROP_ASPECT_RATIO);
@@ -355,7 +455,6 @@ int FrameGrabber::startCamera(int fmt_index)
 			std::cout << "FrameGrabber using normal window (opencv not compiled with opengl support)\n";
 		}
 
-		threadRunning = true;
 		startThread();
 	}
 
@@ -364,8 +463,12 @@ int FrameGrabber::startCamera(int fmt_index)
 
 int FrameGrabber::stopCamera()
 {
-	threadRunning = false;
-	waitForThreadToExit(1000);
+	if (isThreadRunning())
+		stopThread(1000);
+
+    if (isRecording)
+        stopRecording();
+
 	currentFormatIndex = -1;
 
 	if (camera != NULL)
@@ -379,6 +482,7 @@ bool FrameGrabber::isCameraRunning()
 {
 	return (camera != NULL && camera->is_running());
 }
+
 
 std::vector<std::string> FrameGrabber::getFormats()
 {
@@ -417,14 +521,12 @@ int FrameGrabber::getImageQuality()
 	return q;
 }
 
-
 void FrameGrabber::setColorMode(int value)
 {
 	lock.enter();
 	colorMode = value;
 	lock.exit();
 }
-
 
 int FrameGrabber::getColorMode()
 {
@@ -436,18 +538,15 @@ int FrameGrabber::getColorMode()
 	return mode;
 }
 
-
 void FrameGrabber::setWriteMode(int mode)
 {
 	writeMode = mode;
 }
 
-
 int FrameGrabber::getWriteMode()
 {
 	return writeMode;
 }
-
 
 juce::int64 FrameGrabber::getFrameCount()
 {
@@ -459,18 +558,15 @@ juce::int64 FrameGrabber::getFrameCount()
 	return count;
 }
 
-
 void FrameGrabber::setResetFrameCounter(bool enable)
 {
 	resetFrameCounter = enable;
 }
 
-
 bool FrameGrabber::getResetFrameCounter()
 {
 	return resetFrameCounter;
 }
-
 
 void FrameGrabber::setDirectoryName(String name)
 {
@@ -487,70 +583,15 @@ void FrameGrabber::setDirectoryName(String name)
 	}
 }
 
-
 String FrameGrabber::getDirectoryName()
 {
 	return dirName;
 }
 
-
 juce::int64 FrameGrabber::getWrittenFrameCount()
 {
-	int count;
-	lock.enter();
-	count = diskThread->getFrameCount();
-	lock.exit();
-
-	return count;
+	return writeThread->getFrameCount();
 }
-
-void FrameGrabber::run()
-{
-	juce::int64 srcTS;
-	juce::int64 swTS;
-	bool recStatus;
-	int imgQuality;
-	bool winState;
-	bool cMode;
-	int wMode;
-
-    while (threadRunning)
-    {
-
-		if (camera != NULL && camera->is_running())
-		{
-
-			cv::Mat frame = camera->read_frame();
-			if (!frame.empty())
-			{
-				bool writeImage = false;
-
-				lock.enter();
-				imgQuality = imageQuality;
-				recStatus = isRecording;
-				wMode = writeMode;
-				cMode = colorMode;
-				lock.exit();
-
-				writeImage = (wMode == ImageWriteMode::ACQUISITION) || (wMode == ImageWriteMode::RECORDING && recStatus);
-				if (writeImage)
-				{
-					srcTS = CoreServices::getGlobalTimestamp();
-					swTS = CoreServices::getSoftwareTimestamp();
-					diskThread->addFrame(&frame, srcTS, swTS, imgQuality);
-				}
-
-				cv::imshow("FrameGrabber", frame);
-				cv::waitKey(1);
-
-				frameCounter++;
-			}
-		}
-    }
-
-    return;
-}
-
 
 void FrameGrabber::saveCustomParametersToXml(XmlElement* xml)
 {
