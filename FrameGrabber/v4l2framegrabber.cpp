@@ -200,7 +200,7 @@ int Camera::init()
 		std::cerr << "ERROR: Could not set camera capabilities" << "\n";
 		return 1;
 	}
-    
+
     if(init_mmap())
 	{
 		std::cerr << "ERROR: Could not initialize mmap" << "\n";
@@ -249,7 +249,7 @@ int Camera::set_caps()
     fmt.fmt.pix.height = use_fmt.height;
     fmt.fmt.pix.pixelformat = use_fmt.pixelformat;  //V4L2_PIX_FMT_GREY;
     fmt.fmt.pix.field = V4L2_FIELD_NONE;
-    
+
     if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))
     {
         std::cerr << "ERROR: Could not set pixel format" << "\n";
@@ -269,7 +269,7 @@ int Camera::set_caps()
 	{
 		streamparm.parm.capture.timeperframe.numerator = use_fmt.numerator;
 		streamparm.parm.capture.timeperframe.denominator = use_fmt.denominator;
-		if(xioctl(fd, VIDIOC_S_PARM, &streamparm) !=0) 
+		if(xioctl(fd, VIDIOC_S_PARM, &streamparm) !=0)
 		{
 			std::cerr << "ERROR: Failed to set frame rate. Check valid frame rates using v4l2-ctl --list-formats-ext" << "\n";
 			return 1;
@@ -289,7 +289,7 @@ int Camera::init_mmap()
     req.count = 4;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
- 
+
     if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req))
     {
         std::cerr << "ERROR: Requesting Buffer\n";
@@ -303,7 +303,7 @@ int Camera::init_mmap()
         std::cerr << "ERROR: Out of memory\n";
         return 1;
     }
-	
+
 	for (int i=0; i<n_buffers; i++) {
 
 	    struct v4l2_buffer buf;
@@ -321,7 +321,7 @@ int Camera::init_mmap()
 		}
 
 	    buffers[i].length = buf.length;
-	    buffers[i].start = 
+	    buffers[i].start =
 	            mmap(NULL /* start anywhere */,
 	                  buf.length,
 	                  PROT_READ | PROT_WRITE /* required */,
@@ -347,29 +347,40 @@ CameraFormat* Camera::get_format()
 
 cv::Mat Camera::read_frame()
 {
+	return read_frame(false, 0, 0);
+}
+
+cv::Mat Camera::read_frame(bool timeout, int timeout_sec, int timeout_usec)
+{
 	cv::Mat mat;
 
 	fd_set fds;
-	struct timeval tv;
 	int r;
 
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
 
-	/* Timeout. */
-	tv.tv_sec = 2;
-	tv.tv_usec = 0;
+	if (timeout)
+	{
+		/* use timeout */
+		struct timeval tv;
+		tv.tv_sec = 2;
+		tv.tv_usec = 0;
 
-	r = select(fd + 1, &fds, NULL, NULL, &tv);
+		r = select(fd + 1, &fds, NULL, NULL, &tv);
+		if (0 == r) {
+			std::cerr << "ERROR: select timeout\n";
+			return mat;
+		}
+	}
+	else
+	{
+		r = select(fd + 1, &fds, NULL, NULL, NULL);
+	}
 
 	if (-1 == r) {
 		if (EINTR == errno)
     		std::cerr <<  "ERROR: select\n";
-	}
-
-	if (0 == r) {
-	    std::cerr << "ERROR: select timeout\n";
-		return mat;
 	}
 
 	struct v4l2_buffer buf;
@@ -384,7 +395,7 @@ cv::Mat Camera::read_frame()
             	return mat;
 
             case EIO:
-                    /* Can ignore EIO, see spec. */
+                    /* Can ignore EIO, see specs */
 				break;
 
             default:
@@ -437,104 +448,103 @@ std::vector<CameraFormat> Camera::list_formats()
 		char dev[50];
 		sprintf(dev, "/dev/video%d", i);
 		int fd = open(dev, O_RDWR);
-		if (fd == -1)
+		if (fd != -1)
 		{
-			break;
-		}
 
-		struct v4l2_capability cap;
-		CLEAR(cap);
-		if (xioctl(fd, VIDIOC_QUERYCAP, &cap) == -1)
-		{
-			std::cerr << "ERROR: VIDIOC_QUERYCAP\n";
-			close(fd);
-			break;
-		}
-
-		struct v4l2_fmtdesc fmt;
-		CLEAR(fmt);
-		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		fmt.index = 0;
-		while (1)
-		{
-			if (xioctl(fd, VIDIOC_ENUM_FMT, &fmt))
+			struct v4l2_capability cap;
+			CLEAR(cap);
+			if (xioctl(fd, VIDIOC_QUERYCAP, &cap) == -1)
 			{
+				std::cerr << "ERROR: VIDIOC_QUERYCAP\n";
+				close(fd);
 				break;
 			}
 
-			struct v4l2_frmsizeenum frmsize;
-			CLEAR(frmsize);
-			frmsize.pixel_format= fmt.pixelformat;
-			frmsize.index = 0;
-
+			struct v4l2_fmtdesc fmt;
+			CLEAR(fmt);
+			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			fmt.index = 0;
 			while (1)
 			{
-				if (xioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == -1)
+				if (xioctl(fd, VIDIOC_ENUM_FMT, &fmt))
 				{
 					break;
 				}
-	
-				int width = 0;
-				int height = 0;
 
-				if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
-				{
-					width = frmsize.discrete.width;
-					height = frmsize.discrete.height;
-				}
-				else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
-				{
-					std::cout << "V4L2_FRMSIZE_TYPE_STEPWISE not supported at the moment\n";
-//					std::cout << "      index: " << frmsize.index << "\n";
-//					std::cout << "      type: stepwise\n";
-//					std::cout << "      width: " << frmsize.stepwise.min_width << ":" << frmsize.stepwise.max_width << ":" << frmsize.stepwise.step_width << "\n";
-//					std::cout << "      height: " << frmsize.stepwise.min_height << ":" << frmsize.stepwise.max_height << ":" << frmsize.stepwise.step_height << "\n";
-				}
-				else
-				{
-					std::cout << "Unsupported type for VIDIOC_ENUM_FRAMESIZES\n";
-//					std::cout << "      index: " << frmsize.index << "\n";
-//					std::cout << "      type: continuous\n";  
-				}
+				struct v4l2_frmsizeenum frmsize;
+				CLEAR(frmsize);
+				frmsize.pixel_format= fmt.pixelformat;
+				frmsize.index = 0;
 
-				if (width > 0 && height > 0)
+				while (1)
 				{
-					struct v4l2_frmivalenum frmival;
-					CLEAR(frmival);
-					frmival.index = 0;
-					frmival.pixel_format = frmsize.pixel_format;
-					frmival.width = width;
-					frmival.height = height;
-
-					while (1)
+					if (xioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == -1)
 					{
-						if (xioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == -1)
-						{
-							break;
-						}
-
-						int num = 0;
-						int denom = 0;
-						if (frmival.type == V4L2_FRMIVAL_TYPE_DISCRETE)
-						{
-							num = frmival.discrete.numerator;
-							denom = frmival.discrete.denominator;
-
-							CameraFormat cfmt(std::string(dev), &cap.card[0], &cap.driver[0], frmsize.pixel_format, width, height, num, denom);
-							formats.push_back(cfmt);
-						}
-		
-						frmival.index++;
+						break;
 					}
+
+					int width = 0;
+					int height = 0;
+
+					if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
+					{
+						width = frmsize.discrete.width;
+						height = frmsize.discrete.height;
+					}
+					else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
+					{
+						std::cout << "V4L2_FRMSIZE_TYPE_STEPWISE not supported at the moment\n";
+	//					std::cout << "      index: " << frmsize.index << "\n";
+	//					std::cout << "      type: stepwise\n";
+	//					std::cout << "      width: " << frmsize.stepwise.min_width << ":" << frmsize.stepwise.max_width << ":" << frmsize.stepwise.step_width << "\n";
+	//					std::cout << "      height: " << frmsize.stepwise.min_height << ":" << frmsize.stepwise.max_height << ":" << frmsize.stepwise.step_height << "\n";
+					}
+					else
+					{
+						std::cout << "Unsupported type for VIDIOC_ENUM_FRAMESIZES\n";
+	//					std::cout << "      index: " << frmsize.index << "\n";
+	//					std::cout << "      type: continuous\n";
+					}
+
+					if (width > 0 && height > 0)
+					{
+						struct v4l2_frmivalenum frmival;
+						CLEAR(frmival);
+						frmival.index = 0;
+						frmival.pixel_format = frmsize.pixel_format;
+						frmival.width = width;
+						frmival.height = height;
+
+						while (1)
+						{
+							if (xioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == -1)
+							{
+								break;
+							}
+
+							int num = 0;
+							int denom = 0;
+							if (frmival.type == V4L2_FRMIVAL_TYPE_DISCRETE)
+							{
+								num = frmival.discrete.numerator;
+								denom = frmival.discrete.denominator;
+
+								CameraFormat cfmt(std::string(dev), &cap.card[0], &cap.driver[0], frmsize.pixel_format, width, height, num, denom);
+								formats.push_back(cfmt);
+							}
+
+							frmival.index++;
+						}
+					}
+
+					frmsize.index++;
 				}
 
-				frmsize.index++;
+				fmt.index++;
 			}
-		
-			fmt.index++;
-		}
 
-		close(fd);
+			close(fd);
+		}
 	}
 
 	return formats;

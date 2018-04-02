@@ -31,9 +31,9 @@
 #include <ProcessorHeaders.h>
 #include "FrameGrabberEditor.h"
 
-class DiskThread;
 class Camera;
 class CameraFormat;
+class WriteThread;
 
 enum ImageWriteMode {NEVER = 0, RECORDING = 1, ACQUISITION = 2};
 enum ColorMode {GRAY = 0, RGB = 1};
@@ -46,17 +46,7 @@ public:
     FrameGrabber();
     ~FrameGrabber();
 
-    bool isSource()
-    {
-        return true;
-    }
-
-    bool isSink()
-    {
-        return false;
-    }
-
-    void process(AudioSampleBuffer& buffer, MidiBuffer& events);
+    void process(AudioSampleBuffer& buffer);
 
 	void startRecording();
 	void stopRecording();
@@ -100,19 +90,18 @@ private:
 	juce::int64 frameCounter;
 	bool threadRunning;
 	bool isRecording;
-	String framePath;
+	File framePath;
 	int imageQuality;
 	int colorMode;
 	int writeMode;
 	bool resetFrameCounter;
 	String dirName;
 	int currentFormatIndex;
-	DiskThread *diskThread;
+	WriteThread* writeThread;
 
 	CriticalSection lock;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrameGrabber);
-
 };
 
 
