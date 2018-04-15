@@ -40,14 +40,12 @@ Copy the FrameGrabber folder to the plugin folder of your GUI. Then build
 the all plugins as described in the [wiki](https://open-ephys.atlassian.net/wiki/display/OEW/Linux).
 
 **Important** 
-It seems that there is a data type clash between JUCE and opencv. In my case, I 
-had to replace all "int64" by "juce::int64" in 
-[CoreServices.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.h), 
-[CoreServices.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.cpp), 
-[GenericProcessor.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.h),
-and [GenericProcessor.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.cpp).
-Note that this does not affect the rest of the GUI as it is using the juce 
-namespace anyway.
+It seems that there is a data type clash between JUCE and opencv in the [master branch](https://github.com/open-ephys/plugin-GUI/tree/master) of the plugin-GUI. Replace all "int64" by "juce::int64" in the following files:  
+[CoreServices.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.h)   
+[CoreServices.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.cpp)  
+[GenericProcessor.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.h)  
+[GenericProcessor.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.cpp)  
+Note that this does not affect the rest of the GUI as it is using the juce namespace anyway. This issue has been resolved in the current version of the [development branch](https://github.com/open-ephys/plugin-GUI/tree/development) so better check if it made it into the master branch.
 
 ## Changing camera parameters
 
