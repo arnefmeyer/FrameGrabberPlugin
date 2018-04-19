@@ -314,50 +314,49 @@ void FrameGrabber::updateSettings()
 
 void FrameGrabber::startRecording()
 {
-	File recPath = CoreServices::RecordNode::getRecordingPath();
-	framePath = File(recPath.getFullPathName() + recPath.separatorString + dirName);
-
-	if (!framePath.exists() && !framePath.isDirectory())
+	if (writeMode == RECORDING)
 	{
-		Result result = framePath.createDirectory();
-		if (result.failed())
+		File recPath = CoreServices::RecordNode::getRecordingPath();
+		framePath = File(recPath.getFullPathName() + recPath.separatorString + dirName);
+
+		if (!framePath.exists() && !framePath.isDirectory())
 		{
-			std::cout << "FrameGrabber: failed to create frame path " << framePath.getFullPathName().toRawUTF8() << "\n";
-			framePath = File();
+			Result result = framePath.createDirectory();
+			if (result.failed())
+			{
+				std::cout << "FrameGrabber: failed to create frame path " << framePath.getFullPathName().toRawUTF8() << "\n";
+				framePath = File();
+			}
 		}
-	}
 
-	if (framePath.exists())
-	{
-		writeThread->setRecording(false);
-		writeThread->setFramePath(framePath);
-		writeThread->setExperimentNumber(CoreServices::RecordNode::getExperimentNumber());
-		writeThread->setRecordingNumber(CoreServices::RecordNode::getRecordingNumber());
-		writeThread->createTimestampFile();
-		if (resetFrameCounter)
+		if (framePath.exists())
 		{
-			writeThread->resetFrameCounter();
-		}
-		writeThread->setRecording(true);
+			writeThread->setRecording(false);
+			writeThread->setFramePath(framePath);
+			writeThread->setExperimentNumber(CoreServices::RecordNode::getExperimentNumber());
+			writeThread->setRecordingNumber(CoreServices::RecordNode::getRecordingNumber());
+			writeThread->createTimestampFile();
+			if (resetFrameCounter)
+			{
+				writeThread->resetFrameCounter();
+			}
+			writeThread->setRecording(true);
 
-		isRecording = true;
-
-		if (writeMode == RECORDING)
-		{
 			FrameGrabberEditor* e = (FrameGrabberEditor*) editor.get();
 			e->disableControls();
 		}
 	}
+
+	isRecording = true;
 }
 
 
 void FrameGrabber::stopRecording()
 {
 	isRecording = false;
-	writeThread->setRecording(false);
-
 	if (writeMode == RECORDING)
 	{
+		writeThread->setRecording(false);
 		FrameGrabberEditor* e = (FrameGrabberEditor*) editor.get();
 		e->enableControls();
 	}
