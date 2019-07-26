@@ -89,9 +89,9 @@ CameraFormat::CameraFormat()
 CameraFormat::CameraFormat(std::string dev, __u8* crd, __u8* drv, __u32 pxlfmt, __u32 w, __u32 h, __u32 num, __u32 denom)
 {
 	device = dev;
-	for (int i=0; i< sizeof(driver); i++)
+	for (unsigned int i=0; i< sizeof(driver); i++)
 		driver[i] = drv[i];
-	for (int i=0; i< sizeof(card); i++)
+	for (unsigned int i=0; i< sizeof(card); i++)
 		card[i] = crd[i];
 
 	pixelformat = pxlfmt;
@@ -280,6 +280,7 @@ int Camera::set_caps()
 		std::cerr << "ERROR: device does not support setting of frame rate" << "\n";
 		return 1;
 	}
+  return 0;
 }
 
 
@@ -404,7 +405,7 @@ cv::Mat Camera::read_frame(bool timeout, int timeout_sec, int timeout_usec)
             }
     }
 
-    assert(buf.index < n_buffers);
+  assert((int)buf.index < n_buffers);
 	assert(buffers[buf.index].start != NULL);
 
 	if (use_fmt.pixelformat == V4L2_PIX_FMT_GREY)
@@ -556,7 +557,7 @@ std::vector<std::string> Camera::list_formats_as_string()
 	std::vector<std::string> strings;
 
 	std::vector<CameraFormat> formats = Camera::list_formats();
-	for (int i=0; i<formats.size(); i++)
+	for (unsigned int i=0; i<formats.size(); i++)
 	{
 		strings.push_back(formats.at(i).to_string());
 	}
@@ -583,14 +584,11 @@ int Camera::get_format_index(std::string fmt)
 std::string Camera::get_format_string(int index)
 {
 	std::vector<std::string> formats = list_formats_as_string();
-	if (index < formats.size())
+	if (index < (int) formats.size())
 	{
 		return formats.at(index);
 	}
-	else
-	{
-		std::string("");
-	}
+	return std::string("");
 }
 
 
