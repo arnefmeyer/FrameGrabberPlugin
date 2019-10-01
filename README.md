@@ -36,16 +36,26 @@ This plugin requires the following libraries
 
 ## Installation
 
-Copy the FrameGrabber folder to the plugin folder of your GUI. Then build 
-the all plugins as described in the [wiki](https://open-ephys.atlassian.net/wiki/display/OEW/Linux).
+First build [plugin-gui](https://github.com/open-ephys/plugin-gui) (development branch with cmake) following
+[Building plugin-GUI](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/1301643269/Creating+Build+files) and then
+[Installing plugin-GUI](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/491544/Installation)
 
-**Important** 
-It seems that there is a data type clash between JUCE and opencv in the [master branch](https://github.com/open-ephys/plugin-GUI/tree/master) of the plugin-GUI. Replace all "int64" by "juce::int64" in the following files:  
-[CoreServices.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.h)   
-[CoreServices.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/CoreServices.cpp)  
-[GenericProcessor.h](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.h)  
-[GenericProcessor.cpp](https://github.com/open-ephys/plugin-GUI/blob/master/Source/Processors/GenericProcessor/GenericProcessor.cpp)  
-Note that this does not affect the rest of the GUI as it is using the juce namespace anyway. This issue has been resolved in the current version of the [development branch](https://github.com/open-ephys/plugin-GUI/tree/development) so better check if it made it into the master branch.
+Then, following instructions for building third-party Plugins [Building Plugins](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/1259110401/Plugin+CMake+Builds)
+
+In ```FrameGrabberPlugin\FrameGrabber\Build``` folder
+
+```
+export GUI_BASE_DIR=path/to/GUI
+```
+
+```path/to/GUI``` should be changed to the absolute path where the plugin-gui folder is located
+
+Then
+```
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug ..
+make
+make install
+```
 
 ## Changing camera parameters
 

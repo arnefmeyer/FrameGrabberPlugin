@@ -44,7 +44,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
     sourceCombo->addListener(this);
 
 	std::vector<std::string> formats = proc->getFormats();
-    for (int i=0; i<formats.size(); i++)
+    for (unsigned int i=0; i<formats.size(); i++)
     {
         sourceCombo->addItem(formats.at(i), i+1);
     }
@@ -60,7 +60,7 @@ FrameGrabberEditor::FrameGrabberEditor(GenericProcessor* parentNode, bool useDef
     qualityCombo->setBounds(110,50-3,75,20);
     qualityCombo->addListener(this);
 
-    for (int i=0; i<100; i++)
+    for (unsigned int i=0; i<100; i++)
     {
         qualityCombo->addItem(String(i+1), i+1);
     }
@@ -215,7 +215,7 @@ void FrameGrabberEditor::updateDevices()
 	sourceCombo->clear(dontSendNotification);
 	FrameGrabber* proc = (FrameGrabber*) getProcessor();
 	std::vector<std::string> formats = proc->getFormats();
-	for (int i=0; i<formats.size(); i++)
+	for (unsigned int i=0; i<formats.size(); i++)
 	{
 	    sourceCombo->addItem(formats.at(i), i+1);
 	}

@@ -374,8 +374,8 @@ void FrameGrabber::run()
 	juce::int64 swTS;
 	bool recStatus;
 	int imgQuality;
-	bool winState;
-	bool cMode;
+	//bool winState;
+	//bool cMode;
 	int wMode;
 
     while (!threadShouldExit())
@@ -392,7 +392,7 @@ void FrameGrabber::run()
 				imgQuality = imageQuality;
 				recStatus = isRecording;
 				wMode = writeMode;
-				cMode = colorMode;
+				//cMode = colorMode;
 
 				writeImage = (wMode == ImageWriteMode::ACQUISITION) || (wMode == ImageWriteMode::RECORDING && recStatus);
 				lock.exit();
@@ -465,8 +465,8 @@ int FrameGrabber::stopCamera()
 	if (isThreadRunning())
 		stopThread(1000);
 
-    if (isRecording)
-        stopRecording();
+  if (isRecording)
+    stopRecording();
 
 	currentFormatIndex = -1;
 
@@ -475,6 +475,7 @@ int FrameGrabber::stopCamera()
 		delete camera;
 		camera = NULL;
 	}
+  return 0;
 }
 
 bool FrameGrabber::isCameraRunning()
