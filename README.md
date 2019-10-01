@@ -36,26 +36,25 @@ This plugin requires the following libraries
 
 ## Installation
 
-First build [plugin-gui](https://github.com/open-ephys/plugin-gui) (development branch with cmake) following
-[Building plugin-GUI](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/1301643269/Creating+Build+files) and then
+_Note: when using the old build system (e.g., the current master branch of the open-ephys plugin-GUI) use the ["old_makefile" branch](https://github.com/arnefmeyer/FrameGrabberPlugin/tree/old_makefile) of the FrameGrabber plugin._
+
+1. Build [plugin-gui](https://github.com/open-ephys/plugin-gui) (development branch with cmake) following
+[Building plugin-GUI](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/1301643269/Creating+Build+files)
+2. Install plugin-GUI
 [Installing plugin-GUI](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/491544/Installation)
-
-Then, following instructions for building third-party Plugins [Building Plugins](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/1259110401/Plugin+CMake+Builds)
-
-In ```FrameGrabberPlugin\FrameGrabber\Build``` folder
-
+3. Follow instructions for building third-party Plugins [Building Plugins](https://open-ephys.atlassian.net/wiki/spaces/OEW/pages/1259110401/Plugin+CMake+Builds)  
+In the ```FrameGrabberPlugin\FrameGrabber\Build``` folder run  
 ```
 export GUI_BASE_DIR=path/to/GUI
 ```
-
-```path/to/GUI``` should be changed to the absolute path where the plugin-gui folder is located
-
-Then
+```path/to/GUI``` should be changed to the absolute path where the plugin-gui folder is located. Finally, run
 ```
 cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug ..
 make
 make install
 ```
+to build and install the plugin.  
+(Thanks to Ariel Burman for updating the plugin to the new cmake build system.)
 
 ## Changing camera parameters
 
